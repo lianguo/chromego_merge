@@ -85,8 +85,9 @@ def process_clash(data, index):
                     ws_headers_host = proxy.get('ws-opts', {}).get('headers', {}).get('Host', '')
                     location = get_physical_location(server)
                     name = f"{location}_vmess_{index}"
-                    #vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&allowInsecure{insecure}&type={network}&fp={fp}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
-                    vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&type={network}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                    # vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&allowInsecure{insecure}&type={network}&fp={fp}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                    # vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&type={network}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                    vmess_meta =  f"vmess://{network}:{uuid}@{server}:{port}?security={security}&type={network}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
                     merged_proxies.append(vmess_meta)
 
                 elif proxy['type'] == 'tuic':
@@ -183,19 +184,80 @@ def process_sb(data, index):
     try:
         json_data = json.loads(data)
         # 处理 shadowtls 数据
-        server = json_data["outbounds"][1].get("server", "")
-        server_port = json_data["outbounds"][1].get("server_port", "")
-        method = json_data["outbounds"][0].get("method", "")
-        password = json_data["outbounds"][0].get("password", "")
-        version = int(json_data["outbounds"][1].get("version", 0))
-        host = json_data["outbounds"][1]["tls"].get("server_name", "")
-        shadowtls_password = json_data["outbounds"][1].get("password", "")
+        # 提取proxies部分并合并到merged_proxies中
+        outbounds = json_data.get('outbounds', [])
+            
+        for outbound in outbounds:
+            # 如果类型是vless
+            if outbound['type'] == 'vless' :
+                server = outbound.get("server", "")
+                port = int(outbound.get("server_port", 443))
+                udp = outbound.get("udp", "")
+                uuid = outbound.get("uuid", "")
 
-        ss = f"{method}:{password}@{server}:{server_port}"
-        shadowtls = f'{{"version": "{version}", "host": "{host}","password":{shadowtls_password}}}'
-        shadowtls_proxy = "ss://"+base64.b64encode(ss.encode()).decode()+"?shadow-tls="+base64.b64encode(shadowtls.encode()).decode()+f"#shadowtls{index}"
-        
-        merged_proxies.append(shadowtls_proxy)
+                # sni = outbound.get("servername", "")
+                flow = outbound.get("flow", "")
+                publicKey = outbound.get('reality', {}).get('public-key', '')
+                network = outbound.get('transport', {}).get('type', '')
+                short_id = outbound.get('transport', {}).get('service_name', '')
+                ws_headers_host = outbound.get('transport', {}).get('service_name', '')
+                fp = outbound.get("client-fingerprint", "")
+                insecure = int(outbound.get("skip-cert-verify", 0))
+                grpc_serviceName = outbound.get('grpc-opts', {}).get('grpc-service-name', '')
+
+                ws_path = outbound.get('ws-opts', {}).get('path', '')
+                tls = outbound.get('tls', {}).get('enabled', '')
+                sni = outbound.get('tls', {}).get('server_name', '')
+                
+                if tls == False:
+                    security = 'none'
+                else:
+                    security = 'tls'
+                location = get_physical_location(server)
+                name = f"{location}_vless_{index}"
+                # vless_meta =  f"vless://{uuid}@{server}:{port}?security={security}&allowInsecure{insecure}&flow={flow}&type={network}&fp={fp}&pbk={publicKey}&sid={short_id}&sni={sni}&serviceName={grpc_serviceName}&path={ws_path}&host={ws_headers_host}#{name}"
+                vless_meta =  f"vless://{uuid}@{server}:{port}?encryption=none&security={security}&flow={flow}&type={network}&fp={fp}&pbk={publicKey}&sid={short_id}&sni={sni}&serviceName={grpc_serviceName}&path={ws_path}&host={ws_headers_host}#{name}"
+                merged_proxies.append(vless_meta)
+            # 如果类型是vmess
+            if outbound['type'] == 'vmess' :
+                server = outbound.get("server", "")
+                port = int(outbound.get("port", 443))
+                uuid = outbound.get("uuid", "")
+                #cipher = outbound.get("cipher", "")
+                alterId = outbound.get("alterId", "")
+                
+
+                tls = outbound.get("tls", {}).get('enabled', '')
+                # if tls == False:
+                #     security = "none"
+                # elif tls == True:
+                #     security = "tls"
+                security = outbound.get("security", {})
+
+                sni = outbound.get("tls", {}).get("server_name", "")
+
+                ws_path = outbound.get('transport', {}).get('path', '')
+                ws_headers_host = outbound.get("tls", {}).get("server_name", "")
+                network = outbound.get("transport", "").get('type','')
+                location = get_physical_location(server)
+                name = f"{location}_vmess_{index}"
+                #vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&allowInsecure{insecure}&type={network}&fp={fp}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                #vmess_meta =  f"vmess://{uuid}@{server}:{port}?security={security}&type={network}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                vmess_meta =  f"vmess://{network}:{uuid}@{server}:{port}?security={security}&type={network}&sni={sni}&path={ws_path}&host={ws_headers_host}#{name}"
+                merged_proxies.append(vmess_meta)
+            # 如果类型是ss
+            if outbound['type'] == 'ss' :
+                server = json_data["outbounds"][0].get("server", "")
+                server_port = json_data["outbounds"][0].get("server_port", "")
+                method = json_data["outbounds"][0].get("method", "")
+                password = json_data["outbounds"][0].get("password", "")
+                version = int(json_data["outbounds"][0].get("version", 0))
+                host = json_data["outbounds"][0]["tls"].get("server_name", "")
+                shadowtls_password = json_data["outbounds"][1].get("password", "")
+
+                ss = f"{method}:{password}@{server}:{server_port}"
+                shadowtls = f'{{"version": "{version}", "host": "{host}","password":{shadowtls_password}}}'
+                shadowtls_proxy = "ss://"+base64.b64encode(ss.encode()).decode()+"?shadow-tls="+base64.b64encode(shadowtls.encode()).decode()+f"#shadowtls{index}"
 
     except Exception as e:
         logging.error(f"Error processing shadowtls data for index {index}: {e}")
@@ -293,11 +355,54 @@ def process_xray(data, index):
             # 将当前proxy字典添加到所有proxies列表中
             merged_proxies.append(xray_proxy)
         # 不支持插件
+        if protocol == "vmess":
+            vnext = json_data["outbounds"][0]["settings"]["vnext"]
+
+            if vnext:
+                server = vnext[0].get("address", "")
+                port = vnext[0].get("port", "")
+                users = vnext[0]["users"]
+
+                if users:
+                    user = users[0]
+                    uuid = user.get("id", "")
+                    flow = user.get("flow", "")
+                    security = user.get("security", "")
+
+            stream_settings = json_data["outbounds"][0].get("streamSettings", {})
+            network = stream_settings.get("network", "")
+            
+            reality_settings = stream_settings.get("realitySettings", {})
+
+            publicKey = reality_settings.get("publicKey", "")
+            short_id = reality_settings.get("shortId", "")
+            sni = reality_settings.get("serverName", "")
+            #tls
+            tls_settings = stream_settings.get("tlsSettings", {})
+            sni = tls_settings.get("serverName", sni)
+            insecure = int(tls_settings.get("allowInsecure", 0))
+
+            fp = reality_settings.get("fingerprint", "")
+            fp = tls_settings.get("fingerprint", fp)
+            spx = reality_settings.get("spiderX", "")
+
+            grpc_settings = stream_settings.get("grpcSettings", {})
+            grpc_serviceName = grpc_settings.get("serviceName", "")
+
+            ws_settings = stream_settings.get("wsSettings", {})
+            ws_path = ws_settings.get("path", "")
+            ws_headers_host = ws_settings.get("headers", {}).get("Host", "")
+            location = get_physical_location(server)
+            name = f"{location}_vmess_{index}"
+            xray_proxy = f"vmess://{network}:{uuid}@{server}:{port}?security={security}&allowInsecure={insecure}&flow={flow}&type={network}&fp={fp}&pbk={publicKey}&sid={short_id}&sni={sni}&serviceName={grpc_serviceName}&path={ws_path}&host={ws_headers_host}#{name}"
+
+            # 将当前proxy字典添加到所有proxies列表中
+            merged_proxies.append(xray_proxy)
         if protocol == "shadowsocks":
-            server = json_data["outbounds"][0]["settings"]["servers"]["address"]
-            method = json_data["outbounds"][0]["settings"]["servers"]["method"]
-            password = json_data["outbounds"][0]["settings"]["servers"]["password"]
-            port = json_data["outbounds"][0]["settings"]["servers"]["port"]
+            server = json_data["outbounds"][0]["settings"]["servers"][0].get("address", "")
+            method = json_data["outbounds"][0]["settings"]["servers"][0].get("method","")
+            password = json_data["outbounds"][0]["settings"]["servers"][0].get("password","")
+            port = json_data["outbounds"][0]["settings"]["servers"][0].get("port","")
             # 生成URL
             ss_source=f"{method}:{password}@{server}:{port}"
             ss_source=base64.b64encode(ss_source.encode()).decode()
