@@ -23,8 +23,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run merge script
-        run: python meta_merge.py 
+      #- name: Run merge script
+      #  run: python meta_merge.py 
 
       - name: Run shadowrocket merge script
         run: python merge.py  
