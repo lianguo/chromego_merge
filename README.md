@@ -1,6 +1,6 @@
 # Chromego_merge
 
-聚合https://github.com/Alvin9999/pac2提供的免费节点，保存在/sub/base64.txt.
+聚合 https://github.com/Alvin9999/pac2 提供的免费节点，保存在/sub/base64.txt.
 
 ## 注意事项
 
